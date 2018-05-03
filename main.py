@@ -12,7 +12,8 @@ import numpy as np
 
 
 ''' TIPS
-Don't call env.render() to not show the gui with the cartpole
+To train quickly
+don't call env.render() to not show the gui with the cartpole
 '''
 
 
@@ -26,15 +27,17 @@ def select_action(policy, state):
     log_prob = (m.log_prob(action))
     return action.data[0], log_prob
 
-def finish_episode(saved_rewards, saved_logprobs, gamma=0.99):
+def finish_episode(saved_rewards, saved_logprobs, gamma=1):
     """Samples an action from the policy at the state."""
     policy_loss = []
     returns = compute_returns(saved_rewards, gamma)
-#    print(returns)
+    
     returns = torch.Tensor(returns)
     # subtract mean and std for faster training
-    returns = (returns - returns.mean()) / (returns.std() +
-                                            np.finfo(np.float32).eps)
+#    returns = (returns - returns.mean()) / (returns.std()*2 +
+#                                            np.finfo(np.float32).eps)
+#    returns = (returns - returns.mean())
+#    print(returns.numpy())
     for log_prob, reward in zip(saved_logprobs, returns):
         policy_loss.append(-log_prob * reward)
     policy_loss = torch.cat(policy_loss).sum()
@@ -42,7 +45,7 @@ def finish_episode(saved_rewards, saved_logprobs, gamma=0.99):
     # note: retain_graph=True allows for multiple calls to .backward()
     # in a single step
 
-def compute_returns(rewards, gamma=0.99):
+def compute_returns(rewards, gamma=1):
     """
     Compute returns for each time step, given the rewards
       @param rewards: list of floats, where rewards[t] is the reward
@@ -50,13 +53,6 @@ def compute_returns(rewards, gamma=0.99):
       @param gamma: the discount factor
       @returns list of floats representing the episode's returns
           G_t = r_t + \gamma r_{t+1} + \gamma^2 r_{t+2} + ... 
-
-    >>> compute_returns([0,0,0,1], 1.0)
-    [1.0, 1.0, 1.0, 1.0]
-    >>> compute_returns([0,0,0,1], 0.9)
-    [0.7290000000000001, 0.81, 0.9, 1.0]
-    >>> compute_returns([0,-0.5,5,0.5,-10], 0.9)
-    [-2.5965000000000003, -2.8850000000000002, -2.6500000000000004, -8.5, -10.0]
     """
     com_return = [0]*len(rewards)
     com_return[-1] = rewards[-1]
@@ -71,7 +67,7 @@ env = gym.make('CartPole-v0')
 policy = model.SimpleNet()
 
 #Train the Model Using Policy Gradient
-for i_episode in range(1000):
+for i_episode in range(10000):
     state = env.reset() # Call this for new episode
     saved_rewards = []
     saved_logprobs = []
@@ -82,12 +78,13 @@ for i_episode in range(1000):
         action, logprob = select_action(policy, state)
         state, reward, done, info = env.step(action)
         
-        reward = 1
+        reward = 0
         saved_logprobs.append(logprob)
         saved_rewards.append(reward)
 
         if done:
-            print("Episode {} finished after {} timesteps".format(i_episode, t+1))
+            saved_rewards[-1] = t/100
+            print("Episode {} finished after {} timesteps".format(i_episode+1, t+1))
             break
 #    print(saved_rewards)
     finish_episode(saved_rewards, saved_logprobs, 0.99)

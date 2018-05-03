@@ -21,8 +21,8 @@ class SimpleNet(nn.Module):
     '''
     def __init__(self, dim_in=4, dim_out=2):
         super(SimpleNet, self).__init__()
-        self.linear1 = nn.Linear(dim_in, 32)
-        self.linear2 = nn.Linear(32, dim_out)
+        self.linear1 = nn.Linear(dim_in, 128)
+        self.linear2 = nn.Linear(128, dim_out)
 
     def forward(self, inputs):
         l1 = F.relu(self.linear1(inputs))
