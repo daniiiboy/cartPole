@@ -19,9 +19,8 @@ don't call env.render() to not show the gui with the cartpole
 
 def select_action(policy, state):
     """Samples an action from the policy at the state."""
-    state = torch.from_numpy(state).long()
+    state = torch.from_numpy(state).float()
     pr = policy(Variable(state).type(torch.FloatTensor))
-#    print(pr.data)
     m = torch.distributions.Categorical(pr)
     action = m.sample()
     log_prob = (m.log_prob(action))
@@ -37,7 +36,6 @@ def finish_episode(saved_rewards, saved_logprobs, gamma=1):
 #    returns = (returns - returns.mean()) / (returns.std()*2 +
 #                                            np.finfo(np.float32).eps)
 #    returns = (returns - returns.mean())
-#    print(returns.numpy())
     for log_prob, reward in zip(saved_logprobs, returns):
         policy_loss.append(-log_prob * reward)
     policy_loss = torch.cat(policy_loss).sum()
@@ -67,26 +65,40 @@ env = gym.make('CartPole-v0')
 policy = model.SimpleNet()
 
 #Train the Model Using Policy Gradient
-for i_episode in range(10000):
+time_steps = []
+for i_episode in range(5000):
+    optimizer = torch.optim.Adam(policy.parameters(), lr=0.001)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=10000, gamma=0.9)
     state = env.reset() # Call this for new episode
     saved_rewards = []
     saved_logprobs = []
-    for t in range(100):
+    for t in range(200):
 #        env.render()
 #        print(observation)
          
         action, logprob = select_action(policy, state)
         state, reward, done, info = env.step(action)
         
-        reward = 0
+        reward = 1
         saved_logprobs.append(logprob)
         saved_rewards.append(reward)
 
         if done:
-            saved_rewards[-1] = t/100
-            print("Episode {} finished after {} timesteps".format(i_episode+1, t+1))
+            saved_rewards[-1] = 0
+            time_steps.append(t+1)
+            saved_rewards[-1] = 1
             break
-#    print(saved_rewards)
+        
+    if (i_episode+1) % 100 == 0:
+        print("Episode {} finished after {} timesteps".format(i_episode+1, np.mean(time_steps)))
+        time_steps = [] # Reset time_steps
+    
+    # Pseudo Replay Buffer - Decreases Variance in Rewards - Help to Learn quicker
+    if i_episode % 10 == 0: # batch_size
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
     finish_episode(saved_rewards, saved_logprobs, 0.99)
 
 #env.close() # !!! Need this to close the window
