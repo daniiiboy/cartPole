@@ -10,6 +10,7 @@ Created on Thu May  3 22:56:38 2018
 import torch
 import numpy as np
 from torch.autograd import Variable
+import matplotlib.pyplot as plt
 
 def add_noise(state):
 #        mu = 0
@@ -45,3 +46,92 @@ def evaluateFinalCartPole(env, policy, path = 'savedModel/simpleNet_Final', disp
     if display:
         env.close() # !!! Need this to close the window
     return np.mean(time_steps)
+
+def learningCurve(env, policy, 
+                  path = 'savedModel/simpleNet_', save_path = 'performance/simpleNet_performance',
+                  save_model_n = 100, n_episodes = 3000, 
+                  display = False, noise = False, plot=False):
+    '''
+    Graphs the learning curve by evaluating the model at every saved step given
+    in incremeant of 'save_model_n'
+    '''
+    saved_episode = 0
+    episodes = []
+    success_rate = []
+    while saved_episode <= n_episodes:
+        time_steps = []    # Array to store the length of each episode to monitor model learning
+        policy.load_state_dict(torch.load(path+str(saved_episode)))
+
+        for i_episode in range(100):
+            policy.eval()
+            state = env.reset() # Call this for new episode
+            for t in range(200):
+                if display:
+                   env.render()
+                if noise:
+                    state = add_noise(state)   
+                state = torch.from_numpy(state).float()
+                pr = policy(Variable(state).type(torch.FloatTensor)).data.numpy()
+                action = np.argmax(pr)
+                state, reward, done, info = env.step(action)
+        
+                if done:
+                    time_steps.append(t+1)
+                    break
+        if display:
+            env.close() # !!! Need this to close the window
+            
+        episodes.append(saved_episode)
+        success_rate.append(np.mean(time_steps))
+        saved_episode += save_model_n
+        
+    final = np.vstack((episodes, success_rate))
+    np.save(save_path, final)
+    
+    if plot:
+        #Plot the Result
+        plt.figure()
+        plt.plot(final[0], final[1])
+        plt.ylabel('Perfromance')
+        plt.xlabel('Epochs')
+        t = 'Evaluation every' + str(save_model_n) + 'episodes'
+        plt.title(t)
+        plt.show()
+
+def plotLearningCurve(path = 'performance/simpleNet_performance.npy'):
+    final = np.load(path+str('.npy'))
+    plt.figure()
+    plt.plot(final[0], final[1])
+    plt.ylabel('Perfromance')
+    plt.xlabel('Epochs')
+    t = 'Evaluation'
+    plt.title(t)
+    plt.show()
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

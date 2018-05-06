@@ -73,9 +73,11 @@ class PolicyGradientGym(object):
     def saveWeights(self, model, fileName = 'simpleNet_default'):
         torch.save(model.state_dict(), 'savedModel/'+fileName)
     
-    def train(self, env, policy, trial_id = '', n_episodes = 3000, episode_len = 200, 
+    def train(self, env, policy, 
+              trial_id = '', n_episodes = 3000, episode_len = 200, 
               save_model = 100, buffer_size = 5, alpha = 0.002, 
-              discount_fact = 0.99, display = False, noise = False):
+              discount_fact = 0.99, 
+              display = False, noise = False, printUpdate= False):
         ''' Example @arguments
             env - gym environment that we want to train on
             policy - policy we are triaining
@@ -116,10 +118,11 @@ class PolicyGradientGym(object):
                     saved_rewards[-1] = 1
                     break
                 
-            if (i_episode+1) % save_model == 0:
-                print("Episode {} finished after {} timesteps".format(i_episode+1, np.mean(time_steps)))
+            if (i_episode) % save_model == 0:
+                if printUpdate:
+                    print("Episode {} finished after {:3.2f} average timesteps".format(i_episode, np.mean(time_steps)))
                 time_steps = [] # Reset time_steps
-                name = str(trial_id)+ 'simpleNet' + str(i_episode+1)
+                name = str(trial_id)+ 'simpleNet_' + str(i_episode)
                 self.saveWeights(policy, name)
             
             # Pseudo Replay Buffer - Decreases Variance in Rewards - Helps to Learn quicker
@@ -128,7 +131,14 @@ class PolicyGradientGym(object):
                     scheduler.step()
                     optimizer.zero_grad()
             self.finish_episode(saved_rewards, saved_logprobs, discount_fact)
+            
         if display:
             env.close() # !!! Need this to close the window
+            
+        name = str(trial_id)+ 'simpleNet_' + str(n_episodes)
+        self.saveWeights(policy, name)
+        if printUpdate:
+            print("Episode {} finished after {:3.2f} average timesteps".format(n_episodes, np.mean(time_steps)))
+        
         name = str(trial_id)+ 'simpleNet_Final'
         self.saveWeights(policy, name)
